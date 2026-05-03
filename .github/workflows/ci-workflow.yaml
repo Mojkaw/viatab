@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore and build backend
+        run: |
+          dotnet restore ./backend/ViaTab.API.csproj
+          dotnet build ./backend/ViaTab.API.csproj --no-restore --configuration Release
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build frontend
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Build Docker images
+        run: |
+          docker build -t viatab-backend:latest ./backend
+          docker build -t viatab-frontend:latest ./frontend

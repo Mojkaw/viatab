@@ -1,0 +1,38 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@latest
+
+      - name: Build images in Minikube Docker daemon
+        run: |
+          eval $(minikube docker-env)
+          docker build -t viatab-backend:latest ./backend
+          docker build -t viatab-frontend:latest ./frontend
+
+      - name: Apply Kubernetes resources
+        run: |
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/postgres-pv.yaml
+          kubectl apply -f k8s/postgres-pvc.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/postgres --timeout=120s
+          kubectl rollout status deployment/backend --timeout=120s
+          kubectl rollout status deployment/frontend --timeout=120s
+
+      - name: Verify pods are running
+        run: kubectl get pods
